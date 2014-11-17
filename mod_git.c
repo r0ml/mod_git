@@ -39,8 +39,10 @@ typedef struct asset_struct {
 
 struct git_dir_config {
     git_repository *repo;
-//    char *repo_path;
-    char *default_vursion;
+//    const char *repo_path;
+    const char *default_vursion;
+    const char *path;
+    int location;
 };
 
 asset* getAsset(git_repository *repo, const char *v, const char *fnam) {
@@ -103,9 +105,7 @@ void git_request(request_rec *r, const char **tag, const char **commit) {
 
 static int git_handler(request_rec *r) {
     apr_status_t rv;
-    
-    core_dir_config *cd;
-    
+
     if (strcmp(r->handler, GIT_MAGIC_TYPE) && strcmp(r->handler, "git")) {
         return DECLINED;
     }
@@ -117,7 +117,9 @@ static int git_handler(request_rec *r) {
   
     struct git_dir_config *gdc = (struct git_dir_config *) ap_get_module_config(r->per_dir_config, &git_module);
     
-    cd = ap_get_core_module_config(r->per_dir_config);
+    core_dir_config *cd = ap_get_core_module_config(r->per_dir_config);
+    core_request_config *core = ap_get_core_module_config(r->request_config);
+
     
     const char *tag, *commit;
     const char *df = gdc->default_vursion;
@@ -144,13 +146,29 @@ static int git_handler(request_rec *r) {
 
     apr_file_t *workf = NULL;
     
+    
+    // char *pi = r->path_info == NULL || 0 == strlen(r->path_info) ? r->uri : r->path_info;
+    const char *docroot = gdc->path == NULL || gdc->location ? ap_context_document_root(r) : gdc->path;
+    const char *rp = docroot; // gdc->repo_path
+    const char *pi;
+    if (gdc->location) {
+        pi = r->uri + strlen(gdc->path); }
+    else {
+        pi = r->filename + strlen(docroot);
+    }
+    
+    while(*pi == '/') pi++;
+    
     if (workv) {
-      if (r->finfo.filetype == APR_NOFILE) {
+/*      if (r->finfo.filetype == APR_NOFILE) {
         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01233)
         "File does not exist: %s", r->filename);
         return HTTP_NOT_FOUND;
       }
-      if ((rv = apr_file_open(&workf, r->filename, APR_READ, APR_OS_DEFAULT, r->pool)) != APR_SUCCESS) {
+ */
+        
+        char *fnam = apr_pstrcat( r->pool, rp, "/", pi, NULL);
+      if ((rv = apr_file_open(&workf, fnam, APR_READ, APR_OS_DEFAULT, r->pool)) != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01234)
         "file permissions deny server access: %s", r->filename);
         return HTTP_FORBIDDEN;
@@ -172,8 +190,11 @@ static int git_handler(request_rec *r) {
         } else {
             if (gdc->repo == NULL) {
                 git_repository *repo;
-//                char *rp = gdc->repo_path;
-                const char *rp = ap_context_document_root(r);
+                if (rp == NULL) {
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(01235)
+                                  "git handler has no GitRepo path defined");
+                    return HTTP_INTERNAL_SERVER_ERROR;
+                }
                 int n = git_repository_open(&repo, rp);
                     if (n!=0) {
                         const git_error *ge = giterr_last();
@@ -189,7 +210,7 @@ static int git_handler(request_rec *r) {
             const char *tv = tag;
             if ( commit != NULL) tv = commit;
 
-            asset *asn = getAsset( gdc->repo, tv, r->uri+1 );
+            asset *asn = getAsset( gdc->repo, tv, pi );
 
             if (asn == NULL) {
                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01233)
@@ -231,32 +252,59 @@ static void register_hooks(apr_pool_t *p) {
     git_threads_init();
 }
 
+static const char *init_git_config(cmd_parms *cmd, void *dconf, const char *dv) {
+    struct git_dir_config *gdc = (struct git_dir_config *)dconf;
+//    gdc->repo_path = apr_pstrdup(cmd->pool ,rep);
+    gdc->default_vursion = apr_pstrdup(cmd->pool, dv);
+    gdc->path = cmd->path == NULL || 0 == strlen(cmd->path) ? NULL : apr_pstrdup(cmd->pool, cmd->path);
+    gdc->location = 0;
+    if (NULL == cmd->directive->parent) {
+        // this means server level config
+        return NULL;
+    }
+    const char *parent = cmd->directive->parent->directive;
+    if (0 == strcasecmp("<Location", parent)) {
+        gdc->location = 1;
+    }
+    if (0 == strcasecmp("<LocationMath", parent)) {
+        return "Git in LocationMatch stanza not supported";
+    }
+    
+/*
+    if (0 == strcasecmp("<Directory", parent)) {
+        return "Git configuration should be in a Location, not a Directory";
+    }
+ */
+    return NULL;
+}
+
 static void *create_git_dir_config(apr_pool_t *pool, char *d) {
     struct git_dir_config *n = (struct git_dir_config *)apr_pcalloc(pool, sizeof(struct git_dir_config));
-    // if this is set to NULL, then the default vursion will be the checked out vursion
     n->default_vursion = "-";
     return n;
 }
 
-static void *merge_git_dir_config(apr_pool_t* pool, void *base, void *add) {
-    struct git_dir_config *n = create_git_dir_config(pool, "Merged configuration");
+/*
+ static void *merge_git_dir_config(apr_pool_t* pool, void *base, void *add) {
+    struct git_dir_config *n = create_git_dir_config(pool, NULL);
     struct git_dir_config *na = add;
     n->repo = na -> repo;
-    // n->repo_path = apr_pstrdup(pool, na->repo_path);
-    n->default_vursion = apr_pstrdup(pool, na->default_vursion);
+    n->repo_path = na->repo_path == NULL ? NULL : apr_pstrdup(pool, na->repo_path);
+    n->default_vursion = na->repo_path == NULL ? NULL : apr_pstrdup(pool, na->default_vursion);
     return add;
 }
+*/
 
 static const command_rec git_cmds[] = {
-/*    AP_INIT_TAKE1("GitRepo", ap_set_string_slot, (void *)APR_OFFSETOF(struct git_dir_config, repo_path),  RSRC_CONF|ACCESS_CONF, "Path to git repository"), */
-    AP_INIT_TAKE1("DefaultVursion", ap_set_string_slot, (void *)APR_OFFSETOF(struct git_dir_config, default_vursion), RSRC_CONF|ACCESS_CONF, "Default Vursion to serve"),
+    AP_INIT_TAKE1("GitBranch", init_git_config, NULL, RSRC_CONF|ACCESS_CONF, "Git default branch"),
     {NULL}
 };
 
-module AP_MODULE_DECLARE_DATA git_module = {
+AP_DECLARE_MODULE(git) = {
     STANDARD20_MODULE_STUFF,
     create_git_dir_config,              /* create per-directory config structure */
-    merge_git_dir_config,              /* merge per-directory config structures */
+//    merge_git_dir_config,              /* merge per-directory config structures */
+    NULL,
     NULL,              /* create per-server config structure */
     NULL,              /* merge per-server config structures */
     git_cmds,              /* command apr_table_t */

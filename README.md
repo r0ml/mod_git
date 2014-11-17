@@ -8,16 +8,11 @@ Configuration is simple.  Include the module by
 and activate it by specifying, in either a directory or virtual server
 
    SetHandler git
+   GitBranch branch-or-tag
 
-The document root or directory context is assumed to be the git repository, and by default, the working copy will be served -- just as if `mod_git` were not configured.
+The document root or directory context is assumed to be the git repository.  The branch or tag being served by default is specified in GitBranch.  Any commitish will do.  Use a dash (`-`) to signify that the default should be the working copy -- in which case things should behave just as if `mod_git` were not configured -- unless a specific version is requested.
 
-To change the default version being served, specify
-
-   DefaultVursion branch-or-tag
-
-(Yes, Vursion is spelled with a 'U').  Any valid git commitish will work as the branch-or-tag.
-
-To use from a browser, navigate to the configured directory.  The files you will see will be from the specified DefaultVursion (or `master` if it was not specified).  To see a different version, append the query parameter `vursion=desired-tag` to the URL.  This should have the following effect:
+To use from a browser, navigate to the configured directory.  The files you will see will be from the specified GitBranch.  To see a different version, append the query parameter `vursion=desired-tag` to the URL (yes, `vursion` is spelled with a `u`).  This should have the following effect:
 
 1.  The file served will be from the specified tag (or branch or commitish).
 2.  A cookie will be set (`git-tag`) containing the value of the tag requested.
@@ -37,4 +32,17 @@ Building
 ========
 
 You will need `libgit2` (and `apache` of course) installed.
+
+The Xcode project file is included in the repo.
+
+For Linux, the build command is:
+
+   `apxs -i -c mod_git.c -lgit2`
+
+
+Known Issues
+============
+
+- Figuring out the difference between a `Location` and a `Directory` seems weird -- I'm not understanding something.   Consequently, the way I handle it, `LocationMatch` is not supported.
+- I can't figure out how to avoid the default filesystem resolution -- so the file based security model is in effect.  This means you need to configure the directory access for the git repo -- even though the actual serving of content from the repo may not use that directory.
 

@@ -68,17 +68,17 @@ asset* getAsset(git_repository *repo, const char *v, const char *fnam) {
     
     git_tree *tree;
     n = git_tree_lookup(&tree, repo, ci);
-    if (n != 0) return result;
+    if (n != 0) goto tlf;
     
     git_tree_entry *te;
     n = git_tree_entry_bypath(&te, tree, fnam);
-    if (n != 0) return result;
+    if (n != 0) goto tebf;
     
     const git_oid *bi = git_tree_entry_id(te);
     
     git_blob *bl;
     n = git_blob_lookup(&bl,repo,bi);
-    if (n != 0) return result;
+    if (n != 0) goto blf;
     
     git_off_t siz = git_blob_rawsize(bl);
     const char *z = (const char *)git_blob_rawcontent(bl);
@@ -92,6 +92,15 @@ asset* getAsset(git_repository *repo, const char *v, const char *fnam) {
     result->timestamp = gct;
     
     memcpy(result->bytes, z, siz);
+    git_blob_free(bl);
+blf:;
+    git_tree_entry_free(te);
+tebf:;
+    git_tree_free(tree);
+tlf:;
+    git_commit_free(gc);
+    git_object_free(obj);
+
     return result;
 }
 
@@ -231,6 +240,7 @@ static int git_handler(request_rec *r) {
             ap_set_last_modified(r);
             
             apr_brigade_write(bb, NULL, NULL, asn->bytes, asn->len);
+            free(asn);
         }
 
         b = apr_bucket_eos_create(c->bucket_alloc);

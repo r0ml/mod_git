@@ -3,12 +3,16 @@ mod_git is an Apache module which serves files from a (possibly bare) git repo. 
 
 Configuration is simple.  Include the module by
 
+```
    LoadModule git_module path/to/mod_git.so
-   
+```
+
 and activate it by specifying, in either a directory or virtual server
 
+```
    SetHandler git
    GitBranch branch-or-tag
+```
 
 The document root or directory context is assumed to be the git repository.  The branch or tag being served by default is specified in GitBranch.  Any commitish will do.  Use a dash (`-`) to signify that the default should be the working copy -- in which case things should behave just as if `mod_git` were not configured -- unless a specific version is requested.
 
@@ -37,8 +41,9 @@ The Xcode project file is included in the repo.
 
 For Linux, the build command is:
 
-   `apxs -i -c mod_git.c -lgit2`
-
+```
+   apxs -i -c mod_git.c -lgit2
+```
 
 Known Issues
 ============

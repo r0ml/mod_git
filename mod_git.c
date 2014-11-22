@@ -144,6 +144,10 @@ static int git_handler(request_rec *r) {
     size_t st = tag == NULL ? 0 : strlen(tag);
     int workv = st == 0 || (st == 1 && *tag == '-');
 
+    // if I want files from working directory, let the normal Apache mechanism handle it.
+    if (workv) return DECLINED;
+    
+    
     apr_file_t *workf = NULL;
     
     

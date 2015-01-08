@@ -1,4 +1,11 @@
 
+/* 
+ On Linux build with:
+ 
+  sudo apxs -i -c mod_git.c -lgit2
+ 
+ */
+
 #include <stdio.h>
 
 #include "apr_strings.h"
@@ -126,20 +133,17 @@ static int git_handler(request_rec *r) {
   
     struct git_dir_config *gdc = (struct git_dir_config *) ap_get_module_config(r->per_dir_config, &git_module);
     
-    core_dir_config *cd = ap_get_core_module_config(r->per_dir_config);
-    core_request_config *core = ap_get_core_module_config(r->request_config);
-
-    
-    const char *tag, *commit;
+    const char *tag;
     const char *df = gdc->default_vursion;
-    tag = df;
+
     ap_cookie_read(r, "git-tag", &tag, 0);
-    const char *dn = apr_table_get(r->headers_in, "git-tag");
-    if (dn != NULL) tag = dn;
-    ap_cookie_read(r, "git-commit", &commit, 0);
-    
+//    ap_cookie_read(r, "git-commit", &commit, 0);
+//    }
+
+    fprintf(stderr, "tag: %s, header: %s\n", tag, dn);
     if (tag == NULL) tag = df; // put the default back
     
+/*
     apr_table_t *qtable;
     ap_args_to_table(r, &qtable);
     const char *vurs = apr_table_get(qtable, "vursion");
@@ -148,8 +152,8 @@ static int git_handler(request_rec *r) {
         commit = NULL;
         // catches internal redirects
         apr_table_setn(r->headers_in, "git-tag", tag);
-        ap_cookie_write(r, "git-tag", tag, "path=/", ONE_YEAR, r->headers_out, NULL );
     }
+ */
     size_t st = tag == NULL ? 0 : strlen(tag);
     int workv = st == 0 || (st == 1 && *tag == '-');
 
@@ -158,7 +162,6 @@ static int git_handler(request_rec *r) {
     
     
     apr_file_t *workf = NULL;
-    
     
     // char *pi = r->path_info == NULL || 0 == strlen(r->path_info) ? r->uri : r->path_info;
     const char *docroot = gdc->path == NULL || gdc->location ? ap_context_document_root(r) : gdc->path;
@@ -180,7 +183,7 @@ static int git_handler(request_rec *r) {
       }
  */
         
-        char *fnam = apr_pstrcat( r->pool, rp, "/", pi, NULL);
+      char *fnam = apr_pstrcat( r->pool, rp, "/", pi, NULL);
       if ((rv = apr_file_open(&workf, fnam, APR_READ, APR_OS_DEFAULT, r->pool)) != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01234)
         "file permissions deny server access: %s", r->filename);
@@ -223,6 +226,7 @@ static int git_handler(request_rec *r) {
             const char *tv = tag;
             if ( commit != NULL) tv = commit;
 
+            fprintf(stderr, "tv = %s, pi = %s\n", tv, pi);
             asset *asn = getAsset( gdc->repo, tv, pi );
 
             if (asn == NULL) {

@@ -26,13 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <git2.h>
-
-#define GIT_MAGIC_TYPE "httpd/git"
-
-#define ONE_YEAR 31536000
-
-/* HOME must be set to a directory that the httpd daemon has access to -- otherwise 
-   the attempt to open the git repository will fail */
+#include <time.h>
 
 extern module git_module;
 
@@ -50,6 +44,8 @@ struct git_dir_config {
     const char *default_vursion;
     const char *path;
     int location;
+    apr_hash_t *map_tag_to_commit;
+    time_t map_age;
 };
 
 asset* getAsset(git_repository *repo, const char *v, const char *fnam) {
@@ -122,7 +118,7 @@ void git_request(request_rec *r, const char **tag, const char **commit) {
 static int git_handler(request_rec *r) {
     apr_status_t rv;
 
-    if (strcmp(r->handler, GIT_MAGIC_TYPE) && strcmp(r->handler, "git")) {
+    if (strcmp(r->handler, "git")) {
         return DECLINED;
     }
     
@@ -134,26 +130,9 @@ static int git_handler(request_rec *r) {
     struct git_dir_config *gdc = (struct git_dir_config *) ap_get_module_config(r->per_dir_config, &git_module);
     
     const char *tag;
-    const char *df = gdc->default_vursion;
-
     ap_cookie_read(r, "git-tag", &tag, 0);
-//    ap_cookie_read(r, "git-commit", &commit, 0);
-//    }
+    if (tag == NULL) tag = gdc->default_vursion; // put the default back
 
-    fprintf(stderr, "tag: %s, header: %s\n", tag, dn);
-    if (tag == NULL) tag = df; // put the default back
-    
-/*
-    apr_table_t *qtable;
-    ap_args_to_table(r, &qtable);
-    const char *vurs = apr_table_get(qtable, "vursion");
-    if (vurs != NULL) {
-        tag = vurs;
-        commit = NULL;
-        // catches internal redirects
-        apr_table_setn(r->headers_in, "git-tag", tag);
-    }
- */
     size_t st = tag == NULL ? 0 : strlen(tag);
     int workv = st == 0 || (st == 1 && *tag == '-');
 
@@ -224,18 +203,32 @@ static int git_handler(request_rec *r) {
                 }
     
             const char *tv = tag;
+            const char *commit = NULL;
+            if ( time(NULL) - gdc->map_age > 5 ) {
+                fprintf(stderr, "clear hash\n");
+                apr_hash_clear(gdc->map_tag_to_commit);
+                gdc->map_age = time(NULL);
+            }
+            else {
+                commit = apr_hash_get(gdc->map_tag_to_commit, tag, strlen(tag));
+                fprintf(stderr, "looked up hash %s and got %s\n", tag, commit);
+            }
             if ( commit != NULL) tv = commit;
 
             fprintf(stderr, "tv = %s, pi = %s\n", tv, pi);
             asset *asn = getAsset( gdc->repo, tv, pi );
-
+            
+            
             if (asn == NULL) {
                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01233)
                               "File '%s' does not exist in vursion '%s'", r->filename, tag);
                     return HTTP_NOT_FOUND;
             }
             if (commit == NULL) {
-                ap_cookie_write(r, "git-commit", asn->commit_id, "path=/", ONE_YEAR, r->headers_out, NULL);
+                fprintf(stderr, "stored commit %s for %s\n", asn->commit_id, tag);
+                apr_hash_set(gdc->map_tag_to_commit, tag, strlen(tag),
+                         apr_pstrdup(r->server->process->pool, asn->commit_id));
+//                ap_cookie_write(r, "git-commit", asn->commit_id, "path=/", ONE_YEAR, r->headers_out, NULL);
             }
             apr_table_add(r->headers_out,"X-Commit", asn->commit_id);
             apr_table_setn(r->headers_out,"ETag",   apr_pstrdup(r->pool, asn->commit_id) );
@@ -299,6 +292,8 @@ static const char *init_git_config(cmd_parms *cmd, void *dconf, const char *dv) 
 static void *create_git_dir_config(apr_pool_t *pool, char *d) {
     struct git_dir_config *n = (struct git_dir_config *)apr_pcalloc(pool, sizeof(struct git_dir_config));
     n->default_vursion = "-";
+    n->map_tag_to_commit = apr_hash_make(pool);
+    n->map_age = time(NULL);
     return n;
 }
 

@@ -47,16 +47,7 @@ For Linux, the build command is:
 History
 =======
 
-An earlier version of this module would check query parameters to set the `git-tag` cookie from a query parameter.  This would make it easier for unsophisticated users to switch versions.  However, it was felt that the version switching was more of a development feature, and it would not be unreasonable to expect the people wishing to take advantage of this feature to have an EditCookie extension installed in their browsers to set the cookie to switch versions.  Also, one could configure the Apache webserver to set the cookie based on a query parameter using the `Rewrite` and `Headers` modules.  Something like this:
-
-```
-   RewriteCond %{QUERY_STRING} (^|.*&)version=([^&]*)($|&.*)
-   RewriteRule ^ - [env=GITVERSION:%2]
-   RequestHeader add "git-tag" "%{VGITVERSION}e" env=GITVERSION
-```
-
-By separating out the "query-param -> cookie" feature, the administrator the web site can choose different strategies for setting the cookie.
-   
+An earlier version of this module would check query parameters to set the `git-tag` cookie from a query parameter.  This would make it easier for unsophisticated users to switch versions.  However, it was felt that the version switching was more of a development feature, and it would not be unreasonable to expect the people wishing to take advantage of this feature to have an EditCookie extension installed in their browsers to set the cookie to switch versions.
 
 Known Issues
 ============

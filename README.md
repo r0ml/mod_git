@@ -1,5 +1,5 @@
 
-mod_git is an Apache module which serves files from a (possibly bare) git repo.  The client specifies, via cookie or query parameter, which commit to use, and Apache serves the version of the file from that commit.
+mod_git is an Apache module which serves files from a (possibly bare) git repo.  The client specifies, via cookie, which commit to use, and Apache serves the version of the file from that commit.
 
 Configuration is simple.  Include the module by
 
@@ -11,17 +11,17 @@ and activate it by specifying, in either a directory or virtual server
 
 ```
    SetHandler git
-   GitBranch branch-or-tag
+   GitRepo path-to-repo default-branch-or-tag
 ```
 
-The document root or directory context is assumed to be the git repository.  The branch or tag being served by default is specified in GitBranch.  Any commitish will do.  Use a dash (`-`) to signify that the default should be the working copy -- in which case things should behave just as if `mod_git` were not configured -- unless a specific version is requested.
+The document root or directory context is assumed to be the git repository.  The branch or tag being served by default is specified in GitRepo.  Any commitish will do.  Use a dash (`-`) to signify that the default should be the working copy -- in which case files will be served from the file system.
 
-To use from a browser, navigate to the configured directory.  The files you will see will be from the specified GitBranch.  To see a different version, the request must include a cookie `git-tag` containing the commitish desired.  A cookie is used since all of the assets referenced on a page should come from the same commit -- so we wanted a scheme that would include the same commitish on every request.  That would be the cookie.  This should have the following effect:
+To use from a browser, navigate to the configured directory.  The files you will see will be from the specified branch in the specified repo.  To see a different version, the request must include a cookie `git-tag` containing the commitish desired.  A cookie is used since all of the assets referenced on a page should come from the same commit -- so we wanted a scheme that would include the same commitish on every request.  That would be the cookie.  This should have the following effect:
 
 1.  The file served will be from the specified tag (or branch or commitish).
 2.  A response header (`X-Commit`) will be set with the hash from the resolved commit.
 
-Specifying a value of "-" (or an empty value) will serve the checked out working version from the file system -- as if `git` were not being used.
+Specifying a value of "-" (or an empty value) will serve the checked out working version from the file system.
 
 Cookie values like `testing@{3 hours ago}` should work.
 
@@ -52,8 +52,7 @@ An earlier version of this module would check query parameters to set the `git-t
 Known Issues
 ============
 
-- Figuring out the difference between a `Location` and a `Directory` seems weird -- I'm not understanding something.   Consequently, the way I handle it, `LocationMatch` is not supported.
-- I can't figure out how to avoid the default filesystem resolution -- so the file based security model is in effect.  This means you need to configure the directory access for the git repo -- even though the actual serving of content from the repo may not use that directory.
+- LocationMatch is not supported.
 - There is concern that having a client request historical commits might expose security vulnerabilities that had been patched in later commits.  The proposed solution is to have an option to check to ensure that requested versions must be either a defined tag or the HEAD of a branch.  In this way, only "named" commits are available to the web client.  This check is not yet implemented.
-
+- Since the module does not use the Apache directory walk logic to locate files (it uses libgit2), it does not do the .htaccess processing.  It should be possible to copy the logic from  `server/request.c`  to locate and parse `.htaccess` files.  This has not yet been done.
 

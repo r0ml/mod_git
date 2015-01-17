@@ -164,6 +164,9 @@ static int git_handler(request_rec *r) {
     apr_file_t *workf = NULL;
     
     const char *pi = r->filename + strlen( ap_document_root(r)); //  gdc->path);
+    
+    fprintf(stderr, "filename=%s, document_root=%s, pi=%s", r->filename, ap_document_root(r), pi);
+    
     const char *fnam = NULL;
     apr_finfo_t finfo;
 

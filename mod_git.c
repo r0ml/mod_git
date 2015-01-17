@@ -163,7 +163,7 @@ static int git_handler(request_rec *r) {
     
     apr_file_t *workf = NULL;
     
-    const char *pi = r->filename + strlen(gdc->path);
+    const char *pi = r->filename + strlen( ap_document_root(r)); //  gdc->path);
     const char *fnam = NULL;
     apr_finfo_t finfo;
 
@@ -187,7 +187,7 @@ static int git_handler(request_rec *r) {
 
       if ((rv = apr_file_open(&workf, fnam, APR_READ, APR_OS_DEFAULT, r->pool)) != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01234)
-        "file permissions deny server access: %s", r->filename);
+        "file permissions deny server access: %s", fnam);
         return HTTP_FORBIDDEN;
       }
     }
@@ -212,27 +212,27 @@ static int git_handler(request_rec *r) {
             const char *tv = tag;
             const char *commit = NULL;
             if ( time(NULL) - gdc->map_age > 5 ) {
-                fprintf(stderr, "clear hash\n");
+                // fprintf(stderr, "clear hash\n");
                 apr_hash_clear(gdc->map_tag_to_commit);
                 gdc->map_age = time(NULL);
             }
             else {
                 commit = apr_hash_get(gdc->map_tag_to_commit, tag, strlen(tag));
-                fprintf(stderr, "looked up hash %s and got %s\n", tag, commit);
+                // fprintf(stderr, "looked up hash %s and got %s\n", tag, commit);
             }
             if ( commit != NULL) tv = commit;
 
-            fprintf(stderr, "tv = %s, pi = %s\n", tv, pi);
+            // fprintf(stderr, "tv = %s, pi = %s\n", tv, pi);
             asset *asn = getAsset( gdc->repo, tv, pi );
             
             
             if (asn == NULL) {
                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01233)
-                              "File '%s' does not exist in vursion '%s'", r->filename, tag);
+                              "File '%s' does not exist in version '%s'", pi, tag);
                     return HTTP_NOT_FOUND;
             }
             if (commit == NULL) {
-                fprintf(stderr, "stored commit %s for %s\n", asn->commit_id, tag);
+                // fprintf(stderr, "stored commit %s for %s\n", asn->commit_id, tag);
                 apr_hash_set(gdc->map_tag_to_commit, tag, strlen(tag),
                          apr_pstrdup(r->server->process->pool, asn->commit_id));
 //                ap_cookie_write(r, "git-commit", asn->commit_id, "path=/", ONE_YEAR, r->headers_out, NULL);
@@ -252,7 +252,7 @@ static int git_handler(request_rec *r) {
         rv = ap_pass_brigade(r->output_filters, bb);
         if (rv != APR_SUCCESS) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01236)
-                          "mod_git: ap_pass_brigade failed for file %s", r->filename);
+                          "mod_git: ap_pass_brigade failed for file %s", pi);
             return HTTP_INTERNAL_SERVER_ERROR;
         }
     }
@@ -262,6 +262,16 @@ static int git_handler(request_rec *r) {
     
     return OK; // OK is ambiguous -- should be 0
 }
+
+int xpr(void *rec, const char *key, const char *val) {
+    printf("%s: %s\n", key, val);
+    return 1;
+}
+
+void dump_table(apr_table_t *t) {
+    apr_table_do(xpr, NULL, t, NULL);
+}
+
 
 /*
 typedef struct inmem {
@@ -355,7 +365,7 @@ static int git_trans(request_rec *r) {
 static int git_map_location(request_rec *r) {
     git_dir_config *gdc = ap_get_module_config(r->per_dir_config, &git_module);
     if (r->handler != NULL && strcmp(r->handler,"git") == 0) return OK;
-    if (gdc->path == NULL) return DECLINED;
+    // if (gdc->path == NULL) return DECLINED;
     return OK; // bypasses core map_to_storage
     
     /*
@@ -378,6 +388,14 @@ static int git_map_location(request_rec *r) {
      */
 }
 
+/*
+static int git_fixup(request_rec *r) {
+    git_dir_config *gdc = ap_get_module_config(r->per_dir_config, &git_module);
+    fprintf(stderr, "%s\n", r->filename);
+    return DECLINED;
+}
+*/
+
 static void register_hooks(apr_pool_t *p) {
     /* fixup before mod_rewrite, so that the proxied url will not
      * escaped accidentally by our fixup.
@@ -391,8 +409,9 @@ static void register_hooks(apr_pool_t *p) {
     ap_hook_translate_name(git_trans, aszSucc, NULL, APR_HOOK_FIRST );
     
     // suppress the file system access
-    ap_hook_map_to_storage(git_map_location, NULL, NULL, APR_HOOK_FIRST);
+    ap_hook_map_to_storage(git_map_location, NULL, aszSucc, APR_HOOK_FIRST);
     
+    // ap_hook_fixups(git_fixup, NULL, aszSucc, APR_HOOK_FIRST);
     
     // ap_hook_open_htaccess(git_open_htaccess, NULL, NULL, APR_HOOK_FIRST);
     git_threads_init();

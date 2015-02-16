@@ -8,11 +8,13 @@
 
 /* Begin PBXBuildFile section */
 		E7499E7B1A6AB9E8008718B3 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = E7499E7A1A6AB9E8008718B3 /* README.md */; };
+		E753861F1A772026005877CC /* exec.c in Sources */ = {isa = PBXBuildFile; fileRef = E753861E1A772026005877CC /* exec.c */; };
 		E7F0A9761A166987003082B6 /* mod_git.c in Sources */ = {isa = PBXBuildFile; fileRef = E7F0A9741A166987003082B6 /* mod_git.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		E7499E7A1A6AB9E8008718B3 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		E753861E1A772026005877CC /* exec.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = exec.c; sourceTree = "<group>"; };
 		E7F0A9701A1667A2003082B6 /* mod_git.so */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = mod_git.so; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7F0A9741A166987003082B6 /* mod_git.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mod_git.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -32,6 +34,7 @@
 			isa = PBXGroup;
 			children = (
 				E7F0A9741A166987003082B6 /* mod_git.c */,
+				E753861E1A772026005877CC /* exec.c */,
 				E7499E7A1A6AB9E8008718B3 /* README.md */,
 				E77DD10719DC4C8900765765 /* Products */,
 			);
@@ -113,6 +116,7 @@
 			files = (
 				E7499E7B1A6AB9E8008718B3 /* README.md in Sources */,
 				E7F0A9761A166987003082B6 /* mod_git.c in Sources */,
+				E753861F1A772026005877CC /* exec.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

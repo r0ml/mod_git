@@ -2,7 +2,7 @@
 /* 
  On Linux build with:
  
-  sudo apxs -i -c mod_git.c -lgit2
+  sudo apxs -i -c mod_git.c exec.c -lgit2
  
  */
 
@@ -28,13 +28,21 @@
 #include <git2.h>
 #include <time.h>
 
+#include "mod_include.h"
+
+#undef OK
+#define OK 0
+
 extern module git_module;
+
+apr_status_t callScript(request_rec *r, const char *scr, apr_size_t scrlen);
 
 typedef struct asset_struct {
     char commit_id[42];
     char tree_id[42];
     size_t len;
     git_time_t timestamp;
+    git_filemode_t fmod;
     char bytes[1];
 } asset;
 
@@ -79,6 +87,7 @@ asset* getAsset(git_repository *repo, const char *v, const char *fnam) {
     if (n != 0) goto tebf;
     
     const git_oid *bi = git_tree_entry_id(te);
+    git_filemode_t fmod = git_tree_entry_filemode(te);
     
     git_blob *bl;
     n = git_blob_lookup(&bl,repo,bi);
@@ -94,6 +103,7 @@ asset* getAsset(git_repository *repo, const char *v, const char *fnam) {
     result->tree_id[40]='\0';
     result->len = siz;
     result->timestamp = gct;
+    result->fmod = fmod;
     
     memcpy(result->bytes, z, siz);
     git_blob_free(bl);
@@ -150,6 +160,13 @@ static int git_handler(request_rec *r) {
   
     git_dir_config *gdc = (git_dir_config *) ap_get_module_config(r->per_dir_config, &git_module);
     
+    
+    // should do:
+    //
+    // p = r->main ? r->main->pool : r->pool;
+    //
+    // and use p instead of r->pool in most places
+    
     const char *tag;
     ap_cookie_read(r, "git-tag", &tag, 0);
     if (tag == NULL) tag = gdc->default_vursion; // put the default back
@@ -157,13 +174,12 @@ static int git_handler(request_rec *r) {
     size_t st = tag == NULL ? 0 : strlen(tag);
     int workv = st == 0 || (st == 1 && *tag == '-');
 
-    // if I want files from working directory, let the normal Apache mechanism handle it.
-    //    if (workv) return DECLINED;
-    
-    
     apr_file_t *workf = NULL;
     
-    const char *pi = r->filename + strlen( ap_document_root(r)); //  gdc->path);
+    const char *pi = r->filename;
+    if (strlen(pi) > 12 && strncmp(r->filename, "passthrough:", 12) == 0) pi += 12;
+    
+    pi += strlen(gdc->path); // gdc->path should be the Location prefix
     
     // fprintf(stderr, "filename=%s, document_root=%s, pi=%s", r->filename, ap_document_root(r), pi);
     
@@ -173,21 +189,11 @@ static int git_handler(request_rec *r) {
     while(*pi == '/') pi++;
     
     if (workv) {
-/*      if (r->finfo.filetype == APR_NOFILE) {
-        ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01233)
-        "File does not exist: %s", r->filename);
-        return HTTP_NOT_FOUND;
-      }
- */
-        
       fnam = ap_make_full_path(r->pool, gdc->repo_path, pi);
-
       apr_status_t rv = apr_stat(&finfo, fnam, APR_FINFO_TYPE, r->pool);
       if (rv != APR_SUCCESS || finfo.filetype == APR_DIR) {
           return HTTP_NOT_FOUND;
       }
-        
-
       if ((rv = apr_file_open(&workf, fnam, APR_READ, APR_OS_DEFAULT, r->pool)) != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01234)
         "file permissions deny server access: %s", fnam);
@@ -203,7 +209,6 @@ static int git_handler(request_rec *r) {
         bb = apr_brigade_create(r->pool, c->bucket_alloc);
         
         if (workv) {
-            
             ap_update_mtime(r, finfo.mtime);
             ap_set_last_modified(r);
             apr_brigade_insert_file(bb, workf, 0, finfo.size, r->pool);
@@ -240,13 +245,29 @@ static int git_handler(request_rec *r) {
                          apr_pstrdup(r->server->process->pool, asn->commit_id));
 //                ap_cookie_write(r, "git-commit", asn->commit_id, "path=/", ONE_YEAR, r->headers_out, NULL);
             }
-            apr_table_add(r->headers_out,"X-Commit", asn->commit_id);
-            apr_table_setn(r->headers_out,"ETag",   apr_pstrdup(r->pool, asn->commit_id) );
-            apr_table_unset(r->notes,"no-etag");
-            r->mtime = asn->timestamp * 1000000;
-            ap_set_last_modified(r);
+            // check here to see if the asset is an executable script.
             
-            apr_brigade_write(bb, NULL, NULL, asn->bytes, asn->len);
+            git_filemode_t fft = asn->fmod;
+
+            if (fft == GIT_FILEMODE_BLOB_EXECUTABLE) {
+                // currently the callScript sends the result
+                // an alternative strategy is to have the script results collected in memory
+                // then the result can be returned as if it had been read from GIT
+                callScript(r, &asn->bytes[0], asn->len);
+                free(asn);
+                return OK;
+                
+            } else {
+            
+                // This is for a static file asset
+                apr_table_add(r->headers_out,"X-Commit", asn->commit_id);
+                apr_table_setn(r->headers_out,"ETag",   apr_pstrdup(r->pool, asn->commit_id) );
+                apr_table_unset(r->notes,"no-etag");
+                r->mtime = asn->timestamp * 1000000;
+                ap_set_last_modified(r);
+
+                apr_brigade_write(bb, NULL, NULL, asn->bytes, asn->len);
+            }
             free(asn);
         }
 
@@ -265,16 +286,6 @@ static int git_handler(request_rec *r) {
     
     return OK; // OK is ambiguous -- should be 0
 }
-
-int xpr(void *rec, const char *key, const char *val) {
-    printf("%s: %s\n", key, val);
-    return 1;
-}
-
-void dump_table(apr_table_t *t) {
-    apr_table_do(xpr, NULL, t, NULL);
-}
-
 
 /*
 typedef struct inmem {
@@ -355,6 +366,9 @@ static apr_status_t git_open_htaccess(request_rec *r, const char *dir_name, cons
    Currently, we are not using .htaccess files, so there is limited urgency.
  */
 
+
+// ----------------------------------------------------------------------------------------------
+
 static int git_trans(request_rec *r) {
     git_dir_config *gdc = ap_get_module_config(r->per_dir_config, &git_module);
     if (gdc->path == NULL) return DECLINED;
@@ -366,7 +380,7 @@ static int git_trans(request_rec *r) {
 }
 
 static int git_map_location(request_rec *r) {
-    git_dir_config *gdc = ap_get_module_config(r->per_dir_config, &git_module);
+    // git_dir_config *gdc = ap_get_module_config(r->per_dir_config, &git_module);
     if (r->handler != NULL && strcmp(r->handler,"git") == 0) return OK;
     // if (gdc->path == NULL) return DECLINED;
     return OK; // bypasses core map_to_storage

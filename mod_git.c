@@ -383,7 +383,7 @@ static int git_map_location(request_rec *r) {
     // git_dir_config *gdc = ap_get_module_config(r->per_dir_config, &git_module);
     if (r->handler != NULL && strcmp(r->handler,"git") == 0) return OK;
     // if (gdc->path == NULL) return DECLINED;
-    return OK; // bypasses core map_to_storage
+    return DECLINED; // bypasses core map_to_storage
     
     /*
     git_server_conf *sconf = ap_get_module_config(r->server_module_config, &git_module);

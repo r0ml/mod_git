@@ -1,4 +1,21 @@
 
+#if defined(__APPLE__)
+#include "apache2/httpd.h"
+#include "apache2/http_log.h"
+#include "apache2/http_request.h"
+
+#include "apache2/util_filter.h"
+#include "apache2/util_script.h"
+#include "apache2/mod_include.h"
+
+#include "apr_strings.h"
+#include "apr_lib.h"
+#include "apr_poll.h"
+#include "apr_buckets.h"
+
+#include "apache2/ap_mpm.h"
+
+#else
 #include "httpd.h"
 #include "http_log.h"
 #include "http_request.h"
@@ -13,6 +30,7 @@
 #include "apr_buckets.h"
 
 #include "ap_mpm.h"
+#endif
 
 
 /* Soak up stderr from a script and redirect it to the error log.

@@ -84,7 +84,7 @@
 		E77DD0FE19DC4C8900765765 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0600;
+				LastUpgradeCheck = 0700;
 				ORGANIZATIONNAME = "Robert Lefkowitz";
 				TargetAttributes = {
 					E7F0A96F1A1667A2003082B6 = {
@@ -142,9 +142,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
+				GCC_LINK_WITH_DYNAMIC_LIBRARIES = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -157,9 +158,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "${SDK_DIR}/usr/include/apr-1";
 				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LIBTOOLFLAGS = "";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -186,15 +189,17 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
+				GCC_LINK_WITH_DYNAMIC_LIBRARIES = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "${SDK_DIR}/usr/include/apr-1";
 				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_LIBTOOLFLAGS = "";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -202,8 +207,9 @@
 		E7F0A9711A1667A2003082B6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
 				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = /usr/libexec/apache2;
+				DYLIB_INSTALL_NAME_BASE = /usr/local/lib;
 				EXECUTABLE_EXTENSION = so;
 				EXECUTABLE_PREFIX = "";
 				HEADER_SEARCH_PATHS = (
@@ -217,6 +223,7 @@
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACH_O_TYPE = mh_dylib;
 				OTHER_LDFLAGS = (
+					"-lssl",
 					"-lgit2",
 					"-undefined",
 					dynamic_lookup,
@@ -228,8 +235,9 @@
 		E7F0A9721A1667A2003082B6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
 				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = /usr/libexec/apache2;
+				DYLIB_INSTALL_NAME_BASE = /usr/local/lib;
 				EXECUTABLE_EXTENSION = so;
 				EXECUTABLE_PREFIX = "";
 				HEADER_SEARCH_PATHS = (
@@ -243,6 +251,7 @@
 				LIBRARY_SEARCH_PATHS = /usr/local/lib;
 				MACH_O_TYPE = mh_dylib;
 				OTHER_LDFLAGS = (
+					"-lssl",
 					"-lgit2",
 					"-undefined",
 					dynamic_lookup,

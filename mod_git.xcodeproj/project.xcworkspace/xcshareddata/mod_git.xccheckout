@@ -7,14 +7,14 @@
 	<key>IDESourceControlProjectIdentifier</key>
 	<string>462ED031-1A17-46CD-B8D6-51BAC24F43D2</string>
 	<key>IDESourceControlProjectName</key>
-	<string>mod_git</string>
+	<string>project</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
 		<key>A703D7223E4312A118D90A08EF608A5B09769458</key>
 		<string>github.com:r0ml/mod_git.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
-	<string>mod_git.xcodeproj</string>
+	<string>mod_git.xcodeproj/project.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
 		<key>A703D7223E4312A118D90A08EF608A5B09769458</key>

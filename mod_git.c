@@ -6,8 +6,32 @@
  
  */
 
+/* On OSX, the libtool for apxs doesn't work right -- and there is no way to override the (broken) linker 
+ 
+ env SDKROOT=/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk apxs -S CC='/Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc' -I/usr/local/include -i -c mod_git.c -lgit2
+ 
+ 
+  xcodebuild -project mod_git.xcodeproj -target "mod_git"    
+ 
+*/
+
 #include <stdio.h>
 
+#if defined(__APPLE__)
+#include <apr_strings.h>
+#include <apache2/ap_config.h>
+#include <apache2/httpd.h>
+#include <apache2/http_config.h>
+#include <apache2/http_protocol.h>
+#include <apache2/http_log.h>
+#include <apache2/util_script.h>
+#include <apache2/http_main.h>
+#include <apache2/http_request.h>
+#include <apache2/util_cookies.h>
+#include <apache2/mod_core.h>
+#include <apache2/http_core.h>
+#include <apache2/mod_include.h>
+#else
 #include "apr_strings.h"
 #include "ap_config.h"
 #include "httpd.h"
@@ -17,18 +41,17 @@
 #include "util_script.h"
 #include "http_main.h"
 #include "http_request.h"
-
 #include "util_cookies.h"
-
 #include "mod_core.h"
 #include "http_core.h"
+#include "mod_include.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
 #include <git2.h>
 #include <time.h>
 
-#include "mod_include.h"
 
 #undef OK
 #define OK 0
@@ -120,7 +143,8 @@ tlf:;
 
 /* if using threads, git needs to be initialized for threads */
 static void git_child_init(apr_pool_t *pool, server_rec *s) {
-    git_threads_init();
+    // git_threads_init();
+    git_libgit2_init(); // renamed in libgit2-0.22
 }
 
 
@@ -431,7 +455,8 @@ static void register_hooks(apr_pool_t *p) {
     // ap_hook_fixups(git_fixup, NULL, aszSucc, APR_HOOK_FIRST);
     
     // ap_hook_open_htaccess(git_open_htaccess, NULL, NULL, APR_HOOK_FIRST);
-    git_threads_init();
+    // git_threads_init();
+    git_libgit2_init(); // renamed in libgit2-0.22
 }
 
 static const char *init_git_config(cmd_parms *cmd, void *dconf, const char *rp, const char *dv) {
